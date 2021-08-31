@@ -27,8 +27,7 @@ def parse_payload(p):
     name = payload[11:].decode("utf-8")
     return (expiry, name)
 
-def main():
-    header, payload, signature = read_qr().split(".")
+def verify_signature(header, payload, signature):
     pubKeys = getCovidSigningKeys()
     ecPubKey = [i['publicKey'] for i in pubKeys if i['kid'] == header][0]
     byteData = (header + "." + payload).encode("utf-16le")
@@ -36,11 +35,18 @@ def main():
     verifier = ecdsa.VerifyingKey.from_pem(ecPubKey, hashfunc=sha256)
     try:
         if verifier.verify(sigBytes,byteData):
-            print("VERIFIED")
-            expiry, name = parse_payload(payload)
-            print('CovidPass for {0}, valid until 20{1}-{2}-{3} {4}:{5} GMT'.format(name, *expiry))
+            return True
     except: 
-        print("Failed signature - INVALID")
+        return False
+
+def main():
+    header, payload, signature = read_qr().split(".")
+    if verify_signature(header, payload, signature):
+        print("VERIFIED")
+        expiry, name = parse_payload(payload)
+        print('CovidPass for {0}, valid until 20{1}-{2}-{3} {4}:{5} GMT'.format(name, *expiry))
+    else:
+        print("Invalid signature")
     
 if __name__ == "__main__":
     main()
