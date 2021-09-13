@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from hashlib import sha256
+from datetime import datetime
 import base64
 import urllib.request
 import json
@@ -39,6 +40,16 @@ def verify_signature(header, payload, signature):
     verifier = ecdsa.VerifyingKey.from_pem(ec_pub_key, hashfunc=sha256)
     return verifier.verify(sig_bytes,byte_data)
 
+def check_date(expiry):
+    current_time = datetime.utcnow()
+    exp_year = int("20" + expiry[0])
+    exp_month = int(expiry[1])
+    exp_day = int(expiry[2])
+    exp_hour = int(expiry[3])
+    exp_min = int(expiry[4])
+    exp_date = datetime(exp_year,exp_month,exp_day, exp_hour, exp_min)
+    return exp_date >= current_time
+
 def main():
     valid_qr = False
     valid_sig = False
@@ -61,12 +72,22 @@ def main():
         valid_sig = verify_signature(header, payload, signature)
         if valid_sig:
             expiry, name = parse_payload(payload)
-            print('CovidPass for {0}, valid until 20{1}-{2}-{3} {4}:{5} GMT'.format(name, *expiry))
     except:
         valid_sig = False
 
     if not valid_sig:
         print("Invalid signature")
+        exit()
+
+    try:
+        valid_date = check_date(expiry)
+    except:
+        valid_date = False
+
+    if valid_date:
+        print('CovidPass for {0}, valid until 20{1}-{2}-{3} {4}:{5} GMT'.format(name, *expiry))
+    else:
+        print("Expired pass")
         exit()
 
 if __name__ == "__main__":
